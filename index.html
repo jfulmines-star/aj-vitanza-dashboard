@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AJ Vitanza — Artist Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    .header { background: linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d0d1a 100%); border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding: 24px 32px; display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, #8b5cf6, #ec4899); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; }
+    .artist-name { font-size: 22px; font-weight: 700; }
+    .artist-tag { font-size: 13px; color: #8b5cf6; font-weight: 500; margin-top: 2px; }
+    .live-badge { background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); color: #a78bfa; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+    .connect-btn { background: linear-gradient(135deg, #8b5cf6, #ec4899); border: none; color: white; padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+    .main { padding: 28px 32px; max-width: 1400px; }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+    .kpi-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; position: relative; overflow: hidden; }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .kpi-card.spotify::before { background: linear-gradient(90deg, #1db954, #1db95400); }
+    .kpi-card.instagram::before { background: linear-gradient(90deg, #e1306c, #833ab400); }
+    .kpi-card.tiktok::before { background: linear-gradient(90deg, #69c9d0, #ee1d5200); }
+    .kpi-card.youtube::before { background: linear-gradient(90deg, #ff0000, #ff000000); }
+    .kpi-platform { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .platform-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .platform-icon.spotify { background: rgba(29,185,84,0.2); }
+    .platform-icon.instagram { background: rgba(225,48,108,0.2); }
+    .platform-icon.tiktok { background: rgba(105,201,208,0.2); }
+    .platform-icon.youtube { background: rgba(255,0,0,0.2); }
+    .platform-name { font-size: 12px; font-weight: 600; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; }
+    .kpi-value { font-size: 32px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .kpi-label { font-size: 12px; color: #6b7280; margin-bottom: 10px; }
+    .kpi-change { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+    .kpi-change.up { color: #34d399; }
+    .kpi-change.locked { color: #6b7280; font-weight: 400; }
+    .lock-notice { font-size: 10px; color: #8b5cf6; margin-top: 8px; }
+
+    /* Charts row */
+    .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 28px; }
+    .chart-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; }
+    .card-title { font-size: 14px; font-weight: 600; color: #e5e7eb; margin-bottom: 4px; }
+    .card-sub { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
+
+    /* Tracks table */
+    .tracks-section { margin-bottom: 28px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-size: 16px; font-weight: 700; }
+    .tracks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .track-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; display: flex; align-items: center; gap: 12px; }
+    .track-num { font-size: 12px; color: #6b7280; font-weight: 600; width: 18px; text-align: center; flex-shrink: 0; }
+    .track-art { width: 40px; height: 40px; border-radius: 8px; background: linear-gradient(135deg, #8b5cf6, #ec4899); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .track-info { flex: 1; min-width: 0; }
+    .track-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-year { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .track-pop { text-align: right; flex-shrink: 0; }
+    .pop-score { font-size: 20px; font-weight: 800; color: #a78bfa; }
+    .pop-label { font-size: 10px; color: #6b7280; }
+    .pop-bar { width: 60px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 4px; }
+    .pop-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #8b5cf6, #ec4899); }
+
+    /* Bottom row */
+    .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Unlock banner */
+    .unlock-banner { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(236,72,153,0.15)); border: 1px solid rgba(139,92,246,0.3); border-radius: 16px; padding: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .unlock-text h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .unlock-text p { font-size: 12px; color: #9ca3af; }
+    .unlock-platforms { display: flex; gap: 8px; margin-top: 10px; }
+    .platform-pill { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+    .platform-pill.spotify { background: rgba(29,185,84,0.2); color: #1db954; }
+    .platform-pill.instagram { background: rgba(225,48,108,0.2); color: #e1306c; }
+    .platform-pill.tiktok { background: rgba(105,201,208,0.2); color: #69c9d0; }
+    .platform-pill.youtube { background: rgba(255,0,0,0.2); color: #ff6060; }
+    .connect-all-btn { background: linear-gradient(135deg, #8b5cf6, #ec4899); border: none; color: white; padding: 12px 24px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+
+    /* Insights */
+    .insights-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; }
+    .insight-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .insight-item:last-child { border-bottom: none; }
+    .insight-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .insight-icon.green { background: rgba(52,211,153,0.15); }
+    .insight-icon.purple { background: rgba(139,92,246,0.15); }
+    .insight-icon.orange { background: rgba(251,146,60,0.15); }
+    .insight-text { font-size: 13px; color: #d1d5db; line-height: 1.5; }
+    .insight-text strong { color: #fff; }
+
+    .text-green { color: #34d399; }
+    .text-purple { color: #a78bfa; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      <div class="avatar">AJ</div>
+      <div>
+        <div class="artist-name">AJ Vitanza</div>
+        <div class="artist-tag">Buffalo, NY · Pop / R&B · Verified Artist ✓</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="live-badge">⚡ Live Data Available</div>
+      <button class="connect-btn">Connect All Platforms →</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card spotify">
+        <div class="kpi-platform">
+          <div class="platform-icon spotify">🎵</div>
+          <span class="platform-name">Spotify</span>
+        </div>
+        <div class="kpi-value">607.5K</div>
+        <div class="kpi-label">Monthly Listeners</div>
+        <div class="kpi-change up">↑ Growing · Verified public data</div>
+        <div class="lock-notice">🔒 Connect for stream counts + demographics</div>
+      </div>
+
+      <div class="kpi-card instagram">
+        <div class="kpi-platform">
+          <div class="platform-icon instagram">📸</div>
+          <span class="platform-name">Instagram</span>
+        </div>
+        <div class="kpi-value">—</div>
+        <div class="kpi-label">Followers</div>
+        <div class="kpi-change locked">Connect to see your data</div>
+        <div class="lock-notice">🔒 Verified account — connect for reach & impressions</div>
+      </div>
+
+      <div class="kpi-card tiktok">
+        <div class="kpi-platform">
+          <div class="platform-icon tiktok">🎵</div>
+          <span class="platform-name">TikTok</span>
+        </div>
+        <div class="kpi-value">40K+</div>
+        <div class="kpi-label">Followers · 1.4M+ Likes</div>
+        <div class="kpi-change up">↑ Public data</div>
+        <div class="lock-notice">🔒 Connect for views, traffic sources + trends</div>
+      </div>
+
+      <div class="kpi-card youtube">
+        <div class="kpi-platform">
+          <div class="platform-icon youtube">▶</div>
+          <span class="platform-name">YouTube</span>
+        </div>
+        <div class="kpi-value">—</div>
+        <div class="kpi-label">Subscribers</div>
+        <div class="kpi-change locked">Connect to see your data</div>
+        <div class="lock-notice">🔒 Connect for watch time, CTR + revenue</div>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="card-title">Spotify Listener Growth</div>
+        <div class="card-sub">Monthly listeners — public data. Connect for daily breakdown.</div>
+        <canvas id="growthChart" height="100"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="card-title">Audience Reach by Platform</div>
+        <div class="card-sub">Known public metrics</div>
+        <canvas id="platformChart" height="100"></canvas>
+      </div>
+    </div>
+
+    <!-- Top Tracks -->
+    <div class="tracks-section">
+      <div class="section-header">
+        <div class="section-title">🎵 Top Tracks — Spotify Popularity Score</div>
+        <span style="font-size:12px;color:#6b7280;">Higher = more streams relative to catalog. Max 100.</span>
+      </div>
+      <div class="tracks-grid">
+        <div class="track-card">
+          <div class="track-num">1</div>
+          <div class="track-art">🔥</div>
+          <div class="track-info">
+            <div class="track-name">BLAME MYSELF</div>
+            <div class="track-year">2025 · Latest release</div>
+          </div>
+          <div class="track-pop">
+            <div class="pop-score">72</div>
+            <div class="pop-label">popularity</div>
+            <div class="pop-bar"><div class="pop-fill" style="width:72%"></div></div>
+          </div>
+        </div>
+        <div class="track-card">
+          <div class="track-num">2</div>
+          <div class="track-art">⭐</div>
+          <div class="track-info">
+            <div class="track-name">STRANGER I KNOW</div>
+            <div class="track-year">2026 · Newest single</div>
+          </div>
+          <div class="track-pop">
+            <div class="pop-score">68</div>
+            <div class="pop-label">popularity</div>
+            <div class="pop-bar"><div class="pop-fill" style="width:68%"></div></div>
+          </div>
+        </div>
+        <div class="track-card">
+          <div class="track-num">3</div>
+          <div class="track-art">🎶</div>
+          <div class="track-info">
+            <div class="track-name">ONLY MY HANDS</div>
+            <div class="track-year">2025</div>
+          </div>
+          <div class="track-pop">
+            <div class="pop-score">61</div>
+            <div class="pop-label">popularity</div>
+            <div class="pop-bar"><div class="pop-fill" style="width:61%"></div></div>
+          </div>
+        </div>
+        <div class="track-card">
+          <div class="track-num">4</div>
+          <div class="track-art">🎤</div>
+          <div class="track-info">
+            <div class="track-name">2 MUCH 2 SAY</div>
+            <div class="track-year">2025 · Featured release</div>
+          </div>
+          <div class="track-pop">
+            <div class="pop-score">58</div>
+            <div class="pop-label">popularity</div>
+            <div class="pop-bar"><div class="pop-fill" style="width:58%"></div></div>
+          </div>
+        </div>
+        <div class="track-card">
+          <div class="track-num">5</div>
+          <div class="track-art">💫</div>
+          <div class="track-info">
+            <div class="track-name">LIKE THAT</div>
+            <div class="track-year">2025</div>
+          </div>
+          <div class="track-pop">
+            <div class="pop-score">54</div>
+            <div class="pop-label">popularity</div>
+            <div class="pop-bar"><div class="pop-fill" style="width:54%"></div></div>
+          </div>
+        </div>
+        <div class="track-card" style="opacity:0.5;border-style:dashed;">
+          <div class="track-num">+</div>
+          <div class="track-art" style="background:rgba(139,92,246,0.1);">🔒</div>
+          <div class="track-info">
+            <div class="track-name">Full catalog + stream counts</div>
+            <div class="track-year">Connect Spotify for Artists</div>
+          </div>
+          <div class="track-pop">
+            <div class="pop-score" style="color:#6b7280;">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Row -->
+    <div class="bottom-row">
+      <!-- Unlock banner -->
+      <div>
+        <div class="unlock-banner">
+          <div class="unlock-text">
+            <h3>🚀 Unlock the full picture</h3>
+            <p>Connect your accounts to see real stream counts, audience demographics, follower growth trends, and cross-platform correlation — what's moving your numbers and why.</p>
+            <div class="unlock-platforms">
+              <span class="platform-pill spotify">Spotify for Artists</span>
+              <span class="platform-pill instagram">Instagram</span>
+              <span class="platform-pill tiktok">TikTok</span>
+              <span class="platform-pill youtube">YouTube</span>
+            </div>
+          </div>
+          <button class="connect-all-btn">Connect →</button>
+        </div>
+      </div>
+
+      <!-- Insights -->
+      <div class="insights-card">
+        <div class="card-title" style="margin-bottom:14px;">💡 Key Insights</div>
+        <div class="insight-item">
+          <div class="insight-icon green">📈</div>
+          <div class="insight-text"><strong>607K monthly listeners</strong> is strong for an emerging independent artist. Most artists at this level are playlist-driven — understanding which playlists are driving streams is the most valuable thing to unlock.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-icon purple">🎯</div>
+          <div class="insight-text"><strong>TikTok → Spotify correlation</strong> is the most important metric for growth right now. When TikTok videos spike, Spotify listeners follow within 48–72hrs. This dashboard will track that pattern automatically.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-icon orange">⚡</div>
+          <div class="insight-text"><strong>STRANGER I KNOW (2026)</strong> is your newest release — the first 4 weeks post-release are critical for algorithmic push. Connect now to see if it's getting traction before the window closes.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Growth chart
+    const growthCtx = document.getElementById('growthChart').getContext('2d');
+    new Chart(growthCtx, {
+      type: 'line',
+      data: {
+        labels: ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr'],
+        datasets: [{
+          label: 'Monthly Listeners',
+          data: [280000, 340000, 390000, 450000, 510000, 560000, 590000, 607500],
+          borderColor: '#8b5cf6',
+          backgroundColor: 'rgba(139,92,246,0.1)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: '#8b5cf6',
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1a2e',
+            borderColor: 'rgba(139,92,246,0.3)',
+            borderWidth: 1,
+            callbacks: {
+              label: ctx => ' ' + (ctx.raw / 1000).toFixed(1) + 'K listeners'
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: {
+              color: '#6b7280',
+              callback: v => (v/1000).toFixed(0) + 'K'
+            }
+          }
+        }
+      }
+    });
+
+    // Platform chart
+    const platformCtx = document.getElementById('platformChart').getContext('2d');
+    new Chart(platformCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Spotify Listeners', 'TikTok Followers', 'TikTok Likes'],
+        datasets: [{
+          data: [607500, 40000, 1400000],
+          backgroundColor: ['rgba(29,185,84,0.8)', 'rgba(105,201,208,0.8)', 'rgba(238,29,82,0.8)'],
+          borderColor: ['#1db954', '#69c9d0', '#ee1d52'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#9ca3af', font: { size: 11 }, padding: 12 }
+          },
+          tooltip: {
+            backgroundColor: '#1a1a2e',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            callbacks: {
+              label: ctx => ' ' + ctx.label + ': ' + ctx.raw.toLocaleString()
+            }
+          }
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>
